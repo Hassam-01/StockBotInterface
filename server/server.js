@@ -64,43 +64,65 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.get("/api/dashboard", (req, res) => {
-  res.json({
-    user: {
-      name: "Han Ji Pyeong",
-      profileImage: "path/to/profile-image.jpg",
-      joinedDate: "June 22, 2020",
-      assetsTotal: 1312900,
-      assetList: [
-        { name: "Bitcoin", quantity: "23.5 BTC" },
-        { name: "Ethereum", quantity: "190.45 ETH" },
-        { name: "Doge", quantity: "239,500 DOGE" },
-        { name: "Ripple", quantity: "65,100 XRP" },
-      ],
-    },
-    assets: [
-      { id: 1, name: "Bitcoin", value: 1820, profit: 2.87, loss: 0.17 },
-      { id: 2, name: "Ethereum", value: 1100, profit: 2.87, loss: 0.17 },
-    ],
-    activities: [
-      {
-        id: 1,
-        transaction: "Ethereum Purchased",
-        amount: "0.0154 ETH",
-        total: "USD $10",
-        status: "Pending",
-        date: "February 21, 2021",
-      },
-      {
-        id: 2,
-        transaction: "Bitcoin Purchased",
-        amount: "0.3 BTC",
-        total: "USD $140",
-        status: "Done",
-        date: "February 14, 2021",
-      },
-    ],
-  });
+app.get("/api/dashboard/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+
+  try {
+    // Check if the user exists
+    const user = await db('users').where({ user_id }).first();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // for the assets we go to assets table and take stock_id and price_id, then we go to stock_prices table and
+    // take the price for the price_id and then we go to stocks table and take the company_name and ticker for the stock_id
+
+    const assets = await db('assets')
+      .join('stocks', 'assets.stock_id', 'stocks.stock_id')
+      .join('stock_prices', 'assets.price_id', 'stock_prices.price_id')
+      .select('assets.stock_id', 'stocks.company_name', 'stocks.ticker', 'stock_prices.price', 'assets.price_id', 'assets.quantity', 'stock_prices.price_date')
+      .where({ user_id });
+      
+      // format the assets so that it looks like: assets{ticker: {price_id, price, stock_id,quantity, date}}
+      // for apple it shoule look like: assets{AAPL: {, price, stock_id, quantity, date}, {6, price, stock_id, quantity, date}}
+      console.log("Assests: ",assets);
+      const transformedAssets = {};
+       assets.forEach((asset) => {
+          const { ticker, price_id, price, stock_id, quantity, price_date } = asset;
+           if (!transformedAssets[ticker]) {
+              transformedAssets[ticker] = [];
+            }
+            transformedAssets[ticker].push({ price_id, price, stock_id, quantity, date: price_date });
+    }) 
+    console.log("Transformed: ",transformedAssets);
+    
+
+
+    // console.log("Assets from DB: ", assets);
+    // taking the transactions from the transactions table
+    const activities = await db('transactions').where({ user_id });
+
+    const joined = await db('users')
+      .select('created_at')
+      .where({ user_id })
+      .first();
+
+    const balance = await db('users')
+      .select('total_investment', 'total_profit_loss')
+      .where({ user_id })
+      .first();
+    // console.log(balance, joined, activities, assets);
+    // Return the user's data
+    return res.status(200).json({
+      assets,
+      activities,
+      balance,
+      joined,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Something went wrong' });
+  }
 });
 
 app.listen(3009, ()=>{
