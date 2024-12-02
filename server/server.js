@@ -83,9 +83,8 @@ app.get("/api/dashboard/:user_id", async (req, res) => {
       .select('assets.stock_id', 'stocks.company_name', 'stocks.ticker', 'stock_prices.price', 'assets.price_id', 'assets.quantity', 'stock_prices.price_date')
       .where({ user_id });
       
-      // format the assets so that it looks like: assets{ticker: {price_id, price, stock_id,quantity, date}}
-      // for apple it shoule look like: assets{AAPL: {, price, stock_id, quantity, date}, {6, price, stock_id, quantity, date}}
-      console.log("Assests: ",assets);
+    // ? formatting the assets to be sent to the client, grouping them by ticker
+
       const transformedAssets = {};
        assets.forEach((asset) => {
           const { ticker, price_id, price, stock_id, quantity, price_date } = asset;
@@ -94,11 +93,9 @@ app.get("/api/dashboard/:user_id", async (req, res) => {
             }
             transformedAssets[ticker].push({ price_id, price, stock_id, quantity, date: price_date });
     }) 
-    console.log("Transformed: ",transformedAssets);
     
 
 
-    // console.log("Assets from DB: ", assets);
     // taking the transactions from the transactions table
     const activities = await db('transactions').where({ user_id });
 
@@ -111,10 +108,15 @@ app.get("/api/dashboard/:user_id", async (req, res) => {
       .select('total_investment', 'total_profit_loss')
       .where({ user_id })
       .first();
-    // console.log(balance, joined, activities, assets);
+    // console.log(activities);
     // Return the user's data
+    const transformedAssetsArray = Object.keys(transformedAssets).map((ticker) => ({
+      ticker,
+      assets: transformedAssets[ticker],
+    }));
+    // console.log(typeof transformedAssetsArray);
     return res.status(200).json({
-      assets,
+      transformedAssets : transformedAssetsArray,
       activities,
       balance,
       joined,
