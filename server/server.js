@@ -44,6 +44,17 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/recommendation', async (req, res) => {
+  try {
+    const response = await axios.post('http://localhost:5000/api/recommendation', req.body);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error in forwarding request:', error);
+    res.status(500).send('Error communicating with FastAPI');
+  }
+});
+
+
 app.post('/api/auth/register', async (req, res) => {
   const { username, password, email } = req.body;
 
