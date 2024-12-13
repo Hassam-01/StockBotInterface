@@ -53,7 +53,7 @@ app.post('/api/recommendation', async (req, res) => {
     res.status(500).send('Error communicating with FastAPI');
   }
 });
-
+// test line
 
 app.post('/api/auth/register', async (req, res) => {
   const { username, password, email } = req.body;
